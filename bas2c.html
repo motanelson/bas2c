@@ -1,0 +1,943 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>BASIC to GNU GCC "C" Compiler IDE</title>
+<style>
+  :root {
+    --bg-white: #ffffff;
+    --border-color: #d1d5db;
+    --border-focus: #2563eb;
+    --text-primary: #111827;
+    --text-secondary: #4b5563;
+    --accent: #1e40af;
+    --error: #b91c1c;
+    --success: #15803d;
+    --font-sans: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    --font-mono: "JetBrains Mono", Consolas, "Courier New", monospace;
+  }
+
+  * {
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0;
+  }
+
+  body {
+    background-color: var(--bg-white);
+    color: var(--text-primary);
+    font-family: var(--font-sans);
+    height: 100vh;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+  }
+
+  /* Header */
+  header {
+    background: var(--bg-white);
+    border-bottom: 2px solid var(--border-color);
+    padding: 10px 24px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+  }
+
+  .header-titles h1 {
+    font-size: 1.15rem;
+    font-weight: 700;
+    letter-spacing: -0.01em;
+  }
+
+  .header-titles p {
+    font-size: 0.75rem;
+    color: var(--text-secondary);
+    margin-top: 2px;
+  }
+
+  .header-actions {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+  }
+
+  select, button {
+    font-family: var(--font-sans);
+    font-size: 0.85rem;
+    padding: 6px 12px;
+    border-radius: 4px;
+    border: 1px solid var(--border-color);
+    background: #ffffff;
+    cursor: pointer;
+    transition: all 0.15s ease;
+  }
+
+  select:focus, button:focus {
+    outline: none;
+    border-color: var(--border-focus);
+  }
+
+  button.btn-primary {
+    background-color: var(--accent);
+    color: #ffffff;
+    border-color: var(--accent);
+    font-weight: 600;
+  }
+
+  button.btn-primary:hover {
+    background-color: #1d4ed8;
+  }
+
+  button:hover:not(.btn-primary) {
+    background-color: #f3f4f6;
+  }
+
+  /* Workspace */
+  .workspace {
+    flex: 1;
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 0;
+    background: var(--bg-white);
+    overflow: hidden;
+  }
+
+  .editor-pane {
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+    background: var(--bg-white);
+    border-right: 1px solid var(--border-color);
+  }
+
+  .editor-pane:last-child {
+    border-right: none;
+  }
+
+  .pane-header {
+    padding: 8px 16px;
+    background: #ffffff;
+    border-bottom: 1px solid var(--border-color);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    font-size: 0.8rem;
+    font-weight: 600;
+    color: var(--text-secondary);
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+  }
+
+  .document-area {
+    flex: 1;
+    display: flex;
+    position: relative;
+    background: var(--bg-white);
+    overflow: hidden;
+  }
+
+  /* Line indicators & Textareas */
+  .line-numbers {
+    width: 44px;
+    padding: 12px 6px;
+    text-align: right;
+    font-family: var(--font-mono);
+    font-size: 13px;
+    line-height: 1.5;
+    color: #9ca3af;
+    background: #ffffff;
+    border-right: 1px solid #f3f4f6;
+    user-select: none;
+    overflow: hidden;
+  }
+
+  textarea {
+    flex: 1;
+    border: none;
+    outline: none;
+    resize: none;
+    padding: 12px 16px;
+    font-family: var(--font-mono);
+    font-size: 13px;
+    line-height: 1.5;
+    color: var(--text-primary);
+    background-color: var(--bg-white);
+    white-space: pre;
+    overflow: auto;
+  }
+
+  /* Console & Output bar */
+  .diagnostics {
+    height: 135px;
+    border-top: 2px solid var(--border-color);
+    background: var(--bg-white);
+    display: flex;
+    flex-direction: column;
+  }
+
+  .diagnostics-header {
+    padding: 6px 16px;
+    border-bottom: 1px solid var(--border-color);
+    font-size: 0.75rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    display: flex;
+    justify-content: space-between;
+  }
+
+  #console-output {
+    flex: 1;
+    padding: 8px 16px;
+    font-family: var(--font-mono);
+    font-size: 12px;
+    line-height: 1.4;
+    overflow-y: auto;
+    white-space: pre-wrap;
+    background: #ffffff;
+  }
+
+  .msg-error { color: var(--error); font-weight: 600; }
+  .msg-success { color: var(--success); font-weight: 600; }
+  .msg-info { color: var(--text-secondary); }
+
+  .badge-rule {
+    font-size: 11px;
+    padding: 2px 6px;
+    background: #f3f4f6;
+    border: 1px solid #e5e7eb;
+    border-radius: 3px;
+    color: #4b5563;
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="header-titles">
+    <h1>BASIC to GNU GCC "C" Compiler IDE</h1>
+    <p>Pure White IDE • Labels Only • No Graphics / Trigonometry / Date-Time / RND</p>
+  </div>
+  <div class="header-actions">
+    <select id="exampleSelect" onchange="loadPreset(this.value)" title="Choose sample template">
+      <option value="fibonacci">Sample: Fibonacci Sequence (Labels)</option>
+      <option value="primes">Sample: Prime Sieve (Arrays & Loops)</option>
+      <option value="collatz">Sample: Collatz Conjecture (GOTO & Labels)</option>
+      <option value="strings">Sample: Text & Substring Analysis</option>
+    </select>
+    <button onclick="compileBasic()" class="btn-primary" title="Transpile BASIC to GNU GCC C">Compile to C</button>
+    <button onclick="copyCCode()" title="Copy generated C code">Copy C</button>
+    <button onclick="downloadCFile()" title="Download as .c source file">Download .c</button>
+  </div>
+</header>
+
+<div class="workspace">
+  <!-- BASIC Input Pane -->
+  <div class="editor-pane">
+    <div class="pane-header">
+      <span>BASIC Source Code (Document Area)</span>
+      <span class="badge-rule">Strict: No Line Numbers</span>
+    </div>
+    <div class="document-area">
+      <div class="line-numbers" id="basicLineNumbers">1</div>
+      <textarea id="basicInput" spellcheck="false" placeholder="Write BASIC code here using labels (e.g. start:, loop_1:)..."></textarea>
+    </div>
+  </div>
+
+  <!-- GCC C Output Pane -->
+  <div class="editor-pane">
+    <div class="pane-header">
+      <span>Generated GNU GCC "C" Code (Document Area)</span>
+      <span class="badge-rule">Target: GCC C99 / C11</span>
+    </div>
+    <div class="document-area">
+      <div class="line-numbers" id="cLineNumbers">1</div>
+      <textarea id="cOutput" spellcheck="false" readonly placeholder="C code will be generated here upon compilation..."></textarea>
+    </div>
+  </div>
+</div>
+
+<div class="diagnostics">
+  <div class="diagnostics-header">
+    <span>Compiler Diagnostics & Warnings</span>
+    <span id="compilerStatus">Ready</span>
+  </div>
+  <div id="console-output">Ready to compile. Press "Compile to C".</div>
+</div>
+
+<script>
+// --- Prohibited Keywords & Rule Validation ---
+const FORBIDDEN_RULES = [
+  {
+    regex: /^\s*(\d+)\s+/m,
+    name: "Line Numbers",
+    desc: "Line numbers are strictly prohibited. Use named labels (e.g., 'start:', 'compute_loop:') instead."
+  },
+  {
+    regex: /\b(PSET|PRESET|LINE|CIRCLE|DRAW|PAINT|SCREEN|PALETTE|VIEW|WINDOW|COLOR)\b/i,
+    name: "Graphics Functions",
+    desc: "Graphical subroutines and statements are not permitted."
+  },
+  {
+    regex: /\b(SIN|COS|TAN|ATN|ASIN|ACOS|SEC|CSC|COT)\b/i,
+    name: "Trigonometric Functions",
+    desc: "Trigonometric routines are not permitted."
+  },
+  {
+    regex: /\b(DATE\$|TIME\$|TIMER|NOW|DAY|MONTH|YEAR|HOUR|MINUTE|SECOND)\b/i,
+    name: "Date & Time Functions",
+    desc: "Date-related functions and subroutines are not permitted."
+  },
+  {
+    regex: /\b(RND|RANDOMIZE)\b/i,
+    name: "RND/RANDOMIZE Functions",
+    desc: "RND and RANDOMIZE routines are not permitted."
+  }
+];
+
+// Presets
+const SAMPLES = {
+  fibonacci: 
+`' ===================================================
+' Fibonacci Sequence Generator
+' Uses labels and iteration. Line numbers are omitted.
+' ===================================================
+
+DIM n AS INTEGER
+DIM a AS INTEGER
+DIM b AS INTEGER
+DIM temp AS INTEGER
+DIM i AS INTEGER
+
+PRINT "=== FIBONACCI CALCULATOR ==="
+PRINT "Generating the first 15 terms:"
+
+a = 0
+b = 1
+i = 1
+
+fib_loop:
+    IF i > 15 THEN GOTO fib_done
+    PRINT "Term"; i; ":"; a
+    temp = a + b
+    a = b
+    b = temp
+    i = i + 1
+    GOTO fib_loop
+
+fib_done:
+    PRINT "Calculation complete."
+    END`,
+
+  primes:
+`' ===================================================
+' Prime Numbers Verification (Labels & Conditionals)
+' ===================================================
+
+DIM count AS INTEGER
+DIM candidate AS INTEGER
+DIM divisor AS INTEGER
+DIM is_prime AS INTEGER
+
+PRINT "Listing primes between 2 and 50:"
+count = 0
+candidate = 2
+
+next_candidate:
+    IF candidate > 50 THEN GOTO finished
+    is_prime = 1
+    divisor = 2
+
+test_divisor:
+    IF divisor * divisor > candidate THEN GOTO check_prime
+    IF (candidate MOD divisor) = 0 THEN
+        is_prime = 0
+        GOTO check_prime
+    END IF
+    divisor = divisor + 1
+    GOTO test_divisor
+
+check_prime:
+    IF is_prime = 1 THEN
+        PRINT candidate; "is prime"
+        count = count + 1
+    END IF
+    candidate = candidate + 1
+    GOTO next_candidate
+
+finished:
+    PRINT "Total primes found:"; count
+    END`,
+
+  collatz:
+`' ===================================================
+' Collatz 3N + 1 Conjecture with Labels
+' ===================================================
+
+DIM num AS INTEGER
+DIM steps AS INTEGER
+
+num = 27
+steps = 0
+
+PRINT "Starting Collatz sequence for:"; num
+
+loop_start:
+    IF num = 1 THEN GOTO loop_end
+    
+    steps = steps + 1
+    IF (num MOD 2) = 0 THEN
+        num = num / 2
+    ELSE
+        num = (num * 3) + 1
+    END IF
+    
+    PRINT "Step"; steps; ":"; num
+    GOTO loop_start
+
+loop_end:
+    PRINT "Reached 1 in"; steps; "steps."
+    END`,
+
+  strings:
+`' ===================================================
+' String Formatting & Case Conversion
+' ===================================================
+
+DIM message AS STRING
+DIM subtext AS STRING
+DIM length AS INTEGER
+
+message = "Pure White BASIC Compiler"
+PRINT "Original Text: "; message
+
+length = LEN(message)
+PRINT "Length: "; length
+
+subtext = MID$(message, 1, 10)
+PRINT "Substring (1, 10): "; subtext
+
+PRINT "Uppercase: "; UCASE$(message)
+PRINT "Lowercase: "; LCASE$(message)
+
+PRINT "Completed successfully."
+END`
+};
+
+// --- Transpiler Engine ---
+class BasicCompiler {
+  constructor(source) {
+    this.source = source;
+    this.lines = source.split(/\r?\n/);
+    this.errors = [];
+    this.warnings = [];
+    this.variables = new Map(); // name -> type ('long long', 'double', 'char')
+    this.declaredVars = new Set();
+    this.labels = new Set();
+    this.forStack = [];
+  }
+
+  validateStrictRules() {
+    for (let i = 0; i < this.lines.length; i++) {
+      const lineNum = i + 1;
+      const text = this.lines[i];
+
+      // Check for forbidden line numbers
+      if (/^\s*\d+\s+/.test(text) || /^\s*\d+$/.test(text)) {
+        this.errors.push(`[Rule Violation] Line ${lineNum}: Line numbers are prohibited. Replace line numbers with labels (e.g. 'my_label:').`);
+      }
+
+      // Check forbidden keywords
+      for (const rule of FORBIDDEN_RULES) {
+        if (rule.name === "Line Numbers") continue; // Handled specifically above
+        const match = text.match(rule.regex);
+        if (match) {
+          this.errors.push(`[Rule Violation] Line ${lineNum}: Forbidden identifier '${match[0]}' detected. ${rule.desc}`);
+        }
+      }
+
+      // Register labels
+      const labelMatch = text.match(/^\s*([A-Za-z_][A-Za-z0-9_]*):/);
+      if (labelMatch) {
+        this.labels.add(labelMatch[1]);
+      }
+    }
+  }
+
+  compile() {
+    this.validateStrictRules();
+    if (this.errors.length > 0) {
+      return null;
+    }
+
+    const bodyLines = [];
+
+    for (let i = 0; i < this.lines.length; i++) {
+      const rawLine = this.lines[i];
+      const lineNum = i + 1;
+      const trimmed = rawLine.trim();
+
+      if (!trimmed) {
+        bodyLines.push("");
+        continue;
+      }
+
+      // Comment
+      if (trimmed.startsWith("'") || trimmed.toUpperCase().startsWith("REM ") || trimmed.toUpperCase() === "REM") {
+        const commentText = trimmed.startsWith("'") ? trimmed.slice(1) : trimmed.slice(3);
+        bodyLines.push(`    /* ${commentText.trim()} */`);
+        continue;
+      }
+
+      // Label definition: e.g. "my_label:"
+      if (/^[A-Za-z_][A-Za-z0-9_]*:$/.test(trimmed)) {
+        const lbl = trimmed.slice(0, -1);
+        bodyLines.push(`${lbl}:;`);
+        continue;
+      }
+
+      // Parse statement
+      try {
+        const cCode = this.transpileStatement(trimmed, lineNum);
+        if (cCode !== null) {
+          bodyLines.push("    " + cCode);
+        }
+      } catch (err) {
+        this.errors.push(`Line ${lineNum}: ${err.message}`);
+      }
+    }
+
+    if (this.errors.length > 0) return null;
+
+    // Header boilerplate & helper runtime
+    let out = "";
+    out += "/* Generated by BASIC to GNU GCC Compiler */\n";
+    out += "#define _GNU_SOURCE\n";
+    out += "#include <stdio.h>\n";
+    out += "#include <stdlib.h>\n";
+    out += "#include <string.h>\n";
+    out += "#include <math.h>\n";
+    out += "#include <ctype.h>\n\n";
+
+    // Standard string helper library in GCC
+    out += "/* Runtime String Support Functions */\n";
+    out += "static char* _basic_mid(const char* src, int start, int len) {\n";
+    out += "    int slen = (int)strlen(src);\n";
+    out += "    if (start < 1) start = 1;\n";
+    out += "    if (start > slen) return strdup(\"\");\n";
+    out += "    int max_len = slen - start + 1;\n";
+    out += "    if (len > max_len) len = max_len;\n";
+    out += "    char* res = (char*)malloc(len + 1);\n";
+    out += "    strncpy(res, src + (start - 1), len);\n";
+    out += "    res[len] = '\\0';\n";
+    out += "    return res;\n";
+    out += "}\n\n";
+
+    out += "static char* _basic_ucase(const char* src) {\n";
+    out += "    char* res = strdup(src);\n";
+    out += "    for (char* p = res; *p; p++) *p = toupper((unsigned char)*p);\n";
+    out += "    return res;\n";
+    out += "}\n\n";
+
+    out += "static char* _basic_lcase(const char* src) {\n";
+    out += "    char* res = strdup(src);\n";
+    out += "    for (char* p = res; *p; p++) *p = tolower((unsigned char)*p);\n";
+    out += "    return res;\n";
+    out += "}\n\n";
+
+    out += "int main(int argc, char *argv[]) {\n";
+
+    // Variables declarations
+    out += "    /* Variable Declarations */\n";
+    for (const [varName, type] of this.variables.entries()) {
+      if (type === "string") {
+        out += `    char ${varName}[1024] = {0};\n`;
+      } else if (type === "double") {
+        out += `    double ${varName} = 0.0;\n`;
+      } else {
+        out += `    long long ${varName} = 0LL;\n`;
+      }
+    }
+    out += "\n";
+
+    // Body
+    out += bodyLines.join("\n") + "\n\n";
+    out += "    return 0;\n";
+    out += "}\n";
+
+    return out;
+  }
+
+  transpileStatement(stmt, lineNum) {
+    const up = stmt.toUpperCase();
+
+    // DIM variable AS type
+    const dimMatch = stmt.match(/^DIM\s+([A-Za-z_][A-Za-z0-9_]*)\s+AS\s+(INTEGER|SINGLE|DOUBLE|STRING)/i);
+    if (dimMatch) {
+      const vName = dimMatch[1];
+      const kind = dimMatch[2].toUpperCase();
+      let cType = "long long";
+      if (kind === "STRING") cType = "string";
+      else if (kind === "SINGLE" || kind === "DOUBLE") cType = "double";
+      this.variables.set(vName, cType);
+      this.declaredVars.add(vName);
+      return `/* DIM ${vName} AS ${kind} */`;
+    }
+
+    // PRINT statement
+    if (up.startsWith("PRINT") && (up.length === 5 || /\s/.test(up[5]))) {
+      const exprList = stmt.slice(5).trim();
+      if (!exprList) {
+        return 'printf("\\n");';
+      }
+      return this.translatePrint(exprList);
+    }
+
+    // INPUT statement
+    if (up.startsWith("INPUT") && (up.length === 5 || /\s/.test(up[5]))) {
+      return this.translateInput(stmt.slice(5).trim());
+    }
+
+    // GOTO label
+    const gotoMatch = stmt.match(/^GOTO\s+([A-Za-z_][A-Za-z0-9_]*)/i);
+    if (gotoMatch) {
+      return `goto ${gotoMatch[1]};`;
+    }
+
+    // IF cond THEN ... [ELSE ...]
+    if (up.startsWith("IF ")) {
+      return this.translateIf(stmt);
+    }
+
+    // END IF
+    if (up === "END IF" || up === "ENDIF") {
+      return "}";
+    }
+
+    // ELSE
+    if (up === "ELSE") {
+      return "} else {";
+    }
+
+    // FOR var = start TO end [STEP step]
+    const forMatch = stmt.match(/^FOR\s+([A-Za-z_][A-Za-z0-9_]*)\s*=\s*(.+?)\s+TO\s+(.+?)(?:\s+STEP\s+(.+))?$/i);
+    if (forMatch) {
+      const v = forMatch[1];
+      const start = this.translateExpression(forMatch[2]);
+      const end = this.translateExpression(forMatch[3]);
+      const step = forMatch[4] ? this.translateExpression(forMatch[4]) : "1";
+      if (!this.variables.has(v)) this.variables.set(v, "long long");
+      this.forStack.push({ var: v, step });
+      return `for (${v} = (${start}); (${step}) >= 0 ? (${v} <= (${end})) : (${v} >= (${end})); ${v} += (${step})) {`;
+    }
+
+    // NEXT [var]
+    if (up.startsWith("NEXT")) {
+      this.forStack.pop();
+      return "}";
+    }
+
+    // WHILE condition
+    if (up.startsWith("WHILE ")) {
+      const cond = this.translateExpression(stmt.slice(6).trim());
+      return `while (${cond}) {`;
+    }
+
+    // WEND
+    if (up === "WEND") {
+      return "}";
+    }
+
+    // END
+    if (up === "END") {
+      return "return 0;";
+    }
+
+    // Assignment: LET x = expr OR x = expr
+    let assignStr = stmt;
+    if (up.startsWith("LET ")) {
+      assignStr = stmt.slice(4).trim();
+    }
+    const eqIdx = assignStr.indexOf("=");
+    if (eqIdx !== -1) {
+      const left = assignStr.slice(0, eqIdx).trim();
+      const right = assignStr.slice(eqIdx + 1).trim();
+      if (/^[A-Za-z_][A-Za-z0-9_]*$/.test(left)) {
+        if (!this.variables.has(left)) {
+          // auto detect numeric or string
+          if (left.endsWith("$") || right.startsWith('"')) {
+            this.variables.set(left, "string");
+          } else {
+            this.variables.set(left, "long long");
+          }
+        }
+        const vType = this.variables.get(left);
+        const expr = this.translateExpression(right);
+        if (vType === "string") {
+          return `snprintf(${left}, sizeof(${left}), "%s", ${expr});`;
+        }
+        return `${left} = ${expr};`;
+      }
+    }
+
+    throw new Error(`Unrecognized or unsupported statement: "${stmt}"`);
+  }
+
+  translatePrint(argStr) {
+    let raw = argStr.trim();
+    let trailingSemi = false;
+    if (raw.endsWith(";")) {
+      trailingSemi = true;
+      raw = raw.slice(0, -1).trim();
+    }
+
+    if (!raw) {
+      return trailingSemi ? "" : 'printf("\\n");';
+    }
+
+    // Split on delimiters outside of quotes: ';' and ','
+    const parts = [];
+    let inQuotes = false;
+    let curr = "";
+
+    for (let i = 0; i < raw.length; i++) {
+      const ch = raw[i];
+      if (ch === '"' && (i === 0 || raw[i - 1] !== '\\')) {
+        inQuotes = !inQuotes;
+      }
+      if ((ch === ';' || ch === ',') && !inQuotes) {
+        if (curr.trim()) parts.push({ expr: curr.trim(), sep: ch });
+        curr = "";
+      } else {
+        curr += ch;
+      }
+    }
+    if (curr.trim()) parts.push({ expr: curr.trim(), sep: null });
+
+    const formatParts = [];
+    const argList = [];
+
+    for (const part of parts) {
+      const cExpr = this.translateExpression(part.expr);
+      // Determine string or number
+      if (part.expr.startsWith('"') || part.expr.includes('$') || part.expr.toUpperCase().includes("UCASE$") || part.expr.toUpperCase().includes("MID$")) {
+        formatParts.push("%s");
+      } else {
+        formatParts.push("%lld");
+      }
+      argList.push(cExpr);
+      if (part.sep === ',') {
+        formatParts.push("\\t");
+      } else if (part.sep === ';') {
+        formatParts.push(" ");
+      }
+    }
+
+    if (!trailingSemi) {
+      formatParts.push("\\n");
+    }
+
+    const fmt = formatParts.join("");
+    return `printf("${fmt}"${argList.length ? ", " + argList.join(", ") : ""});`;
+  }
+
+  translateInput(argStr) {
+    let prompt = "";
+    let target = argStr.trim();
+
+    // Check for prompt: INPUT "Prompt"; var
+    const match = argStr.match(/^"([^"]*)"\s*;\s*([A-Za-z_][A-Za-z0-9_]*)/);
+    if (match) {
+      prompt = match[1];
+      target = match[2];
+    }
+
+    if (!this.variables.has(target)) {
+      this.variables.set(target, target.endsWith("$") ? "string" : "long long");
+    }
+
+    let code = "";
+    if (prompt) {
+      code += `printf("${prompt} "); fflush(stdout);\n    `;
+    }
+
+    const type = this.variables.get(target);
+    if (type === "string") {
+      code += `if (fgets(${target}, sizeof(${target}), stdin)) { ${target}[strcspn(${target}, "\\r\\n")] = 0; }`;
+    } else {
+      code += `if (scanf("%lld", &${target}) != 1) { ${target} = 0; }`;
+    }
+    return code;
+  }
+
+  translateIf(stmt) {
+    const thenIdx = stmt.toUpperCase().indexOf(" THEN");
+    if (thenIdx === -1) throw new Error("IF statement missing THEN");
+
+    const condPart = stmt.slice(3, thenIdx).trim();
+    const rest = stmt.slice(thenIdx + 5).trim();
+    const condC = this.translateExpression(condPart);
+
+    if (!rest) {
+      return `if (${condC}) {`;
+    }
+
+    // Single line IF THEN GOTO label
+    const gotoMatch = rest.match(/^GOTO\s+([A-Za-z_][A-Za-z0-9_]*)/i);
+    if (gotoMatch) {
+      return `if (${condC}) { goto ${gotoMatch[1]}; }`;
+    }
+
+    // Check for ELSE in single-line IF
+    const elseIdx = rest.toUpperCase().indexOf(" ELSE ");
+    if (elseIdx !== -1) {
+      const thenStmt = rest.slice(0, elseIdx).trim();
+      const elseStmt = rest.slice(elseIdx + 6).trim();
+      return `if (${condC}) {\n        ${this.transpileStatement(thenStmt, 0)}\n    } else {\n        ${this.transpileStatement(elseStmt, 0)}\n    }`;
+    }
+
+    return `if (${condC}) {\n        ${this.transpileStatement(rest, 0)}\n    }`;
+  }
+
+  translateExpression(expr) {
+    let out = expr.trim();
+
+    // String literals protect
+    const stringLiterals = [];
+    out = out.replace(/"([^"]*)"/g, (m) => {
+      stringLiterals.push(m);
+      return `__STR_${stringLiterals.length - 1}__`;
+    });
+
+    // Replace built-in safe functions
+    out = out.replace(/\bMID\$\s*\(([^,]+),([^,]+),([^)]+)\)/gi, (m, s, st, l) => {
+      return `_basic_mid(${this.translateExpression(s)}, ${this.translateExpression(st)}, ${this.translateExpression(l)})`;
+    });
+
+    out = out.replace(/\bUCASE\$\s*\(([^)]+)\)/gi, (m, s) => {
+      return `_basic_ucase(${this.translateExpression(s)})`;
+    });
+
+    out = out.replace(/\bLCASE\$\s*\(([^)]+)\)/gi, (m, s) => {
+      return `_basic_lcase(${this.translateExpression(s)})`;
+    });
+
+    out = out.replace(/\bLEN\s*\(([^)]+)\)/gi, (m, s) => {
+      return `((long long)strlen(${this.translateExpression(s)}))`;
+    });
+
+    out = out.replace(/\bABS\s*\(([^)]+)\)/gi, (m, val) => `llabs((long long)(${this.translateExpression(val)}))`);
+    out = out.replace(/\bSQR\s*\(([^)]+)\)/gi, (m, val) => `sqrt((double)(${this.translateExpression(val)}))`);
+
+    // Logical & comparison operators
+    out = out.replace(/\bAND\b/gi, "&&");
+    out = out.replace(/\bOR\b/gi, "||");
+    out = out.replace(/\bNOT\b/gi, "!");
+    out = out.replace(/\bMOD\b/gi, "%");
+    out = out.replace(/<>/g, "!=");
+    out = out.replace(/<=/g, "<=");
+    out = out.replace(/>=/g, ">=");
+
+    // Relational '=' replacement (not preceded or followed by < or > or =)
+    out = out.replace(/(?<![<>=!])=(?!=)/g, "==");
+
+    // Exponentiation ^ to pow
+    out = out.replace(/([A-Za-z0-9_]+)\s*\^\s*([A-Za-z0-9_]+)/g, "pow((double)$1, (double)$2)");
+
+    // Restore string literals
+    out = out.replace(/__STR_(\d+)__/g, (_, idx) => stringLiterals[idx]);
+
+    return out;
+  }
+}
+
+// --- IDE UI Controller ---
+const basicInput = document.getElementById("basicInput");
+const cOutput = document.getElementById("cOutput");
+const consoleOutput = document.getElementById("console-output");
+const compilerStatus = document.getElementById("compilerStatus");
+const basicLineNumbers = document.getElementById("basicLineNumbers");
+const cLineNumbers = document.getElementById("cLineNumbers");
+
+function updateLineNumbers(textarea, lineContainer) {
+  const lines = textarea.value.split("\n").length;
+  let numbersHtml = "";
+  for (let i = 1; i <= lines; i++) {
+    numbersHtml += i + "<br>";
+  }
+  lineContainer.innerHTML = numbersHtml;
+}
+
+basicInput.addEventListener("input", () => updateLineNumbers(basicInput, basicLineNumbers));
+basicInput.addEventListener("scroll", () => {
+  basicLineNumbers.scrollTop = basicInput.scrollTop;
+});
+
+cOutput.addEventListener("scroll", () => {
+  cLineNumbers.scrollTop = cOutput.scrollTop;
+});
+
+function loadPreset(key) {
+  if (SAMPLES[key]) {
+    basicInput.value = SAMPLES[key];
+    updateLineNumbers(basicInput, basicLineNumbers);
+    compileBasic();
+  }
+}
+
+function compileBasic() {
+  const source = basicInput.value;
+  const compiler = new BasicCompiler(source);
+  const result = compiler.compile();
+
+  if (compiler.errors.length > 0) {
+    compilerStatus.innerHTML = `<span class="msg-error">Compilation Failed (${compiler.errors.length} errors)</span>`;
+    consoleOutput.innerHTML = compiler.errors.map(err => `<div class="msg-error">• ${escapeHtml(err)}</div>`).join("");
+    cOutput.value = "";
+    updateLineNumbers(cOutput, cLineNumbers);
+  } else {
+    compilerStatus.innerHTML = `<span class="msg-success">Successfully Compiled</span>`;
+    consoleOutput.innerHTML = `<div class="msg-success">✓ 0 Errors. GNU GCC compatible C code successfully generated!</div>\n` +
+      `<div class="msg-info">Build command: gcc -std=c99 -O2 source.c -o program -lm</div>`;
+    cOutput.value = result;
+    updateLineNumbers(cOutput, cLineNumbers);
+  }
+}
+
+function copyCCode() {
+  if (!cOutput.value) {
+    alert("Compile some BASIC code first!");
+    return;
+  }
+  navigator.clipboard.writeText(cOutput.value).then(() => {
+    const orig = compilerStatus.innerHTML;
+    compilerStatus.innerHTML = `<span class="msg-success">Copied to Clipboard!</span>`;
+    setTimeout(() => compilerStatus.innerHTML = orig, 2000);
+  });
+}
+
+function downloadCFile() {
+  const text = cOutput.value;
+  if (!text) {
+    alert("Nothing to download. Please compile first!");
+    return;
+  }
+  const blob = new Blob([text], { type: "text/x-csrc" });
+  const a = document.createElement("a");
+  a.download = "translated_program.c";
+  a.href = URL.createObjectURL(blob);
+  a.click();
+}
+
+function escapeHtml(str) {
+  return str.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+}
+
+// Initial setup
+window.onload = () => {
+  loadPreset("fibonacci");
+};
+</script>
+</body>
+</html>
